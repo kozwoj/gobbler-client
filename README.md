@@ -1,11 +1,32 @@
-# gobbler-client
+# Gobbler Client Overview
 
-`gobbler-client` is a Go SDK for buffering and sending structured log items to a [Gobbler](https://github.com/kozwoj/gobbler) telemetry ingestion server.
+**Gobbler Client** is a Go SDK for buffering and sending structured log items to a [Gobbler](https://github.com/kozwoj/gobbler) telemetry ingestion server. It is a component of the Gobbler telemetry suite that has three parts:
+
+```mermaid
+flowchart LR
+    classDef thick stroke-width:3px,stroke:#222;
+
+    A:::thick
+
+    A["Application\n(with gobbler-client)"]
+    B["Gobbler Server\n(gobbler ingestion pipeline)"]
+    C[("Storage\n(CSV files or Azure Blobs)")]
+    D["GQL Query Engine\n(gobbler-query)"]
+
+    A -->|"HTTP POST /ingest"| B
+    B -->|"timestamped CSV items"| C
+    C -->|"gq query run '...'"| D
+```
+
+| Component | Repository | Role |
+|---|---|---|
+| **gobbler-client** | *this repo* | Go SDK — used to instrument applications |
+| **gobbler** | [kozwoj/gobbler](https://github.com/kozwoj/gobbler) | Server — accepts, validates, buffers, and flushes telemetry items to storage |
+| **gobbler-query** | [kozwoj/gobbler-query](https://github.com/kozwoj/gobbler-query) | GQL Query Engine — analyzes stored telemetry with GQL |
 
 The client accumulates sent items in an in-memory buffer, and flushes them in batches — either when the batch threshold is reached or on a background timer. The design is fire-and-forget: `Log()` never blocks waiting for network I/O. A `Nop()` client is available for the "logging disabled" state and for testing, so application using the SDK need no `if loggingEnabled` guards.
 
 ---
-
 ## Installation
 
 ```
@@ -23,7 +44,6 @@ A running Gobbler (logger) instance with the item type definitions you intend to
 See the [Gobbler REST reference](https://github.com/kozwoj/gobbler/blob/main/docs/REST-commands.md) for how to start a Gobbler instance and register types.
 
 ---
-
 ## Quick start
 
 ```go
@@ -76,7 +96,6 @@ if err != nil {
 ```
 
 ---
-
 ## The Nop client
 
 `Nop()` returns a no-op `Client` where every method returns `nil` immediately. Use it when logging is disabled, when `New()` fails, or in unit tests that don't care about log output.
@@ -111,7 +130,6 @@ return &Server{
 ```
 
 ---
-
 ## Options reference
 
 | Option                  | Default           | Description |
@@ -124,7 +142,6 @@ return &Server{
 | `WithHTTPClient(hc)`    | 15 s timeout      | Custom `*http.Client` for all outbound requests. Use this to configure TLS, a proxy, or a global timeout. |
 
 ---
-
 ## Client interface
 
 ```go
@@ -148,7 +165,6 @@ type Client interface {
 In unit tests that don't need real log delivery, pass `gobblerclient.Nop()` wherever a `Client` is required. For tests that assert on logged items, implement the `Client` interface with a spy struct — the interface is small (four methods) and straightforward to stub.
 
 ---
-
 ## Real example: Gobbler monitoring itself
 
 Gobbler uses gobbler-client to emit its own operational telemetry to a second Gobbler instance — "Gobbler monitoring Gobbler". This is a complete, production-quality example of every major SDK pattern.
